@@ -15,7 +15,7 @@ on:
 
 env:
   MIRROR_URL: ${{ vars.MIRROR_URL }}
-  EXECUTABLE_NAME: my_project
+  EXECUTABLE_NAME: raytracer
 
 jobs:
   build-test-mirror:
@@ -37,7 +37,7 @@ jobs:
           echo "Build..."
           cmake --build build
 
-          if [ ! -f "build/${{ env.EXECUTABLE_NAME }}" ]; then
+          if [ ! -f "${{ env.EXECUTABLE_NAME }}" ]; then
             echo "❌ Échec : l'exécutable n'a pas été créé"
             exit 1
           fi
