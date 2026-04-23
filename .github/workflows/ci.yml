@@ -31,24 +31,26 @@ jobs:
         run: |
             sudo apt-get update -qq
             sudo apt-get install -y cmake g++ make libsfml-dev libconfig++-dev
-
-      - name: Compile project with CMake
-        run: |
-          echo "Configuration CMake..."
-          cmake -B build -DCMAKE_BUILD_TYPE=Release
-
-          echo "Build..."
-          cmake --build build
-
-          if [ ! -f "${{ env.EXECUTABLE_NAME }}" ]; then
-            echo "❌ Échec : l'exécutable n'a pas été créé"
-            exit 1
-          fi
-          echo "✓ Compilation OK"
-
+        
       - name: Mirror to Epitech repository
-        if: failure() && github.ref == 'refs/heads/main' && github.event_name == 'push'
+        ##  if: failure() && github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: pixta-dev/repository-mirroring-action@v1
         with:
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
           target_repo_url: ${{ env.MIRROR_URL }}
+
+      # - name: Compile project with CMake
+      #   run: |
+      #     echo "Configuration CMake..."
+      #     cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      #     echo "Build..."
+      #     cmake --build build
+
+      #     if [ ! -f "${{ env.EXECUTABLE_NAME }}" ]; then
+      #       echo "❌ Échec : l'exécutable n'a pas été créé"
+      #       exit 1
+      #     fi
+      #     echo "✓ Compilation OK"
+
+      
