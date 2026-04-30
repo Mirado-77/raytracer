@@ -38,6 +38,30 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 target_link_options(${PROJECT_NAME} PRIVATE -rdynamic)
 
+# denoise tool binary
+add_executable(denoise_tool
+    src/denoise_tool.cpp
+    src/image/PPMWriter.cpp
+    src/math/Vec3.cpp
+)
+target_include_directories(denoise_tool PRIVATE include)
+target_link_libraries(denoise_tool PRIVATE dl)
+
+#PLUGINS
+macro(add_plugin PLUGIN_NAME)
+    cmake_parse_arguments(P "" "" "SRCS;INCS;LIBS" ${ARGN})
+    add_library(raytracer_${PLUGIN_NAME} SHARED ${P_SRCS})
+    set_target_properties(raytracer_${PLUGIN_NAME} PROPERTIES PREFIX "")
+    target_include_directories(raytracer_${PLUGIN_NAME} PRIVATE
+        include
+        plugins/src/include
+        ${P_INCS}
+    )
+    if(P_LIBS)
+        target_link_libraries(raytracer_${PLUGIN_NAME} PRIVATE ${P_LIBS})
+    endif()
+endmacro()
+
 
 foreach(CATEGORY primitives materials textures)
     file(GLOB CATEGORY_SRCS CONFIGURE_DEPENDS plugins/src/${CATEGORY}/*.cpp)
@@ -46,3 +70,10 @@ foreach(CATEGORY primitives materials textures)
         add_plugin(${PLUGIN_NAME} SRCS ${SRC})
     endforeach()
 endforeach()
+
+
+file(GLOB OBJ_LOADER_SRCS CONFIGURE_DEPENDS plugins/src/ObjLoader/*.cpp)
+add_plugin(obj_loader
+    SRCS ${OBJ_LOADER_SRCS}
+    INCS plugins/include
+)
