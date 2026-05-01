@@ -54,7 +54,8 @@ Triangle::Triangle(const Vec3 &v0, const Vec3 &v1, const Vec3 &v2,
     const Vec2 &uv0, const Vec2 &uv1, const Vec2 &uv2,
     std::shared_ptr<const IMaterial> mat)
     : v0(v0), v1(v1), v2(v2), material(std::move(mat)),
-      n0(n0), n1(n1), n2(n2), uv0(uv0), uv1(uv1), uv2(uv2), hasVertexNormals(true)
+      n0(n0), n1(n1), n2(n2), uv0(uv0), uv1(uv1), uv2(uv2),
+      hasVertexNormals(true)
 {
     Vec3 edge1 = v1 - v0;
     Vec3 edge2 = v2 - v0;
@@ -91,7 +92,8 @@ static Vec3 interpolateNormal(const Triangle &tri, double u, double v)
     return tri.normal;
 }
 
-bool Triangle::intersect(const Ray &ray, double tMin, double tMax, HitRecord &hit) const
+bool Triangle::intersect(const Ray &ray, double tMin, double tMax,
+    HitRecord &hit) const
 {
     Vec3 e1 = v1 - v0;
     Vec3 e2 = v2 - v0;
