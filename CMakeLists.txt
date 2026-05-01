@@ -77,3 +77,9 @@ add_plugin(obj_loader
     SRCS ${OBJ_LOADER_SRCS}
     INCS plugins/include
 )
+
+file(GLOB STL_LOADER_SRCS CONFIGURE_DEPENDS plugins/src/StlLoader/*.cpp)
+add_plugin(stl_loader
+    SRCS ${STL_LOADER_SRCS}
+    INCS plugins/include
+)
