@@ -41,12 +41,16 @@ private:
                                        const TextureParams &tp);
     std::shared_ptr<const IMaterial> createObjectMaterial(const libconfig::Setting &obj,
                                                           Scene &scene,
-                                                          const MaterialContext &ctx);
+                                                          const MaterialContext &ctx,
+                                                          std::string &outMatType,
+                                                          MaterialParams &outParams);
     Matrix4 parseObjectTransform(const libconfig::Setting &obj);
     void createAndAddPrimitive(const libconfig::Setting &obj, const std::string &type,
                                Scene &scene,
                                const std::shared_ptr<const IMaterial> &matPtr,
-                               const Matrix4 &transform);
+                               const Matrix4 &transform,
+                               const std::string &matType,
+                               const MaterialParams &matParams);
 };
 
 #endif // RT_LIBCONFIGLOADER_HPP

@@ -19,22 +19,6 @@
     #include "rt/math/Color.hpp"
     #include "rt/math/Matrix4.hpp"
 
-struct PrimitiveParams {
-    Vec3 position;
-    Vec3 direction;
-    double radius;
-    std::shared_ptr<const IMaterial> material;
-    Matrix4 transform;
-    std::string objPath;
-};
-
-struct LightParams {
-    Vec3 position;
-    Vec3 direction;
-    Color color;
-    double intensity;
-};
-
 struct TextureParams {
     Color color1 = Color(1.0, 1.0, 1.0);
     Color color2 = Color(0.0, 0.0, 0.0);
@@ -54,6 +38,25 @@ struct MaterialParams {
     bool hasTexture = false;
     std::string textureType;
     TextureParams textureParams;
+};
+
+struct PrimitiveParams {
+    Vec3 position;
+    Vec3 direction;
+    double radius;
+    std::shared_ptr<const IMaterial> material;
+    Matrix4 transform;
+    std::string objPath;
+    bool useFileHeader = false;
+    std::string materialType;
+    MaterialParams materialParams;
+};
+
+struct LightParams {
+    Vec3 position;
+    Vec3 direction;
+    Color color;
+    double intensity;
 };
 
 using PrimitiveRegistry = Registry<IPrimitive, const PrimitiveParams&>;
