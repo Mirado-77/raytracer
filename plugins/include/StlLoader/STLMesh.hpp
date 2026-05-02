@@ -16,6 +16,7 @@
     #include "rt/rendering/BVH.hpp"
     #include "rt/math/Matrix4.hpp"
     #include "rt/math/Color.hpp"
+    #include "rt/core/Factory.hpp"
 
 inline constexpr std::size_t STL_HEADER_SIZE = 80;
 inline constexpr std::size_t STL_TRIANGLE_BYTES = 50;
@@ -33,6 +34,9 @@ struct STLLoadStats {
     std::size_t coloredTriangles = 0;
     bool hasMaterialiseColor = false;
     Color materialiseColor{1.0, 1.0, 1.0};
+    bool hasMaterialiseMaterial = false;
+    Color materialiseDiffuse{1.0, 1.0, 1.0};
+    Color materialiseSpecular{0.0, 0.0, 0.0};
 };
 
 class STLTriangle : public IPrimitive {
@@ -63,7 +67,10 @@ class STLMesh : public IPrimitive {
 public:
     STLMesh(const std::string &filepath,
         std::shared_ptr<const IMaterial> material,
-        const Matrix4 &transform);
+        const Matrix4 &transform,
+        bool useFileHeader = false,
+        const std::string &materialType = "",
+        const MaterialParams &materialParams = MaterialParams{});
     ~STLMesh() override = default;
 
     bool intersect(const Ray &ray, double tMin, double tMax,
@@ -82,6 +89,9 @@ private:
     Matrix4 _transform;
     Matrix4 _invTransform;
     STLLoadStats _stats;
+    bool _useFileHeader;
+    std::string _materialType;
+    MaterialParams _materialParams;
 
     struct RawTriangle {
         Vec3 v0, v1, v2;
@@ -101,6 +111,9 @@ private:
         bool &valid, Color &out);
     static void decodeMateraliseHeader(const char *header,
         bool &found, Color &out);
+    static void decodeMateraliseMaterial(const char *header,
+        bool &found, Color &diffuse, Color &specular);
+    void resolveHeaderMaterial();
 
     template<typename T>
     static void readBinary(std::ifstream &file, T &value)

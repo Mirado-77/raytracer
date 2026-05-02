@@ -127,21 +127,22 @@ MaterialParams LibconfigLoader::buildMaterialParams(const libconfig::Setting &ob
 }
 
 std::shared_ptr<const IMaterial> LibconfigLoader::createObjectMaterial(
-    const libconfig::Setting &obj, Scene &scene, const MaterialContext &ctx)
+    const libconfig::Setting &obj, Scene &scene, const MaterialContext &ctx,
+    std::string &outMatType, MaterialParams &outParams)
 {
     bool hasExplicit = obj.exists("material");
+    outMatType = hasExplicit ? std::string(obj["material"].c_str()) : "flat";
+    outParams = buildMaterialParams(obj, ctx.color, ctx.texType, ctx.hasTex, ctx.tp);
     bool wantsOverride = !ctx.isOBJ || hasExplicit || ctx.hasTex || (ctx.isOBJ && ctx.hasColor);
     std::shared_ptr<const IMaterial> result;
 
     if (wantsOverride) {
-        std::string matType = hasExplicit ? std::string(obj["material"].c_str()) : "flat";
-        auto params = buildMaterialParams(obj, ctx.color, ctx.texType, ctx.hasTex, ctx.tp);
-        auto mat = std::shared_ptr<IMaterial>(Factory::createMaterial(matType, params));
+        auto mat = std::shared_ptr<IMaterial>(Factory::createMaterial(outMatType, outParams));
         if (mat) {
             scene.materials.push_back(mat);
             result = mat;
         } else {
-            std::cerr << "Warning: Unknown material type '" << matType << "', skipping" << std::endl;
+            std::cerr << "Warning: Unknown material type '" << outMatType << "', skipping" << std::endl;
         }
     }
     return result;
@@ -173,13 +174,17 @@ Matrix4 LibconfigLoader::parseObjectTransform(const libconfig::Setting &obj)
 void LibconfigLoader::createAndAddPrimitive(const libconfig::Setting &obj, const std::string &type,
                                             Scene &scene,
                                             const std::shared_ptr<const IMaterial> &matPtr,
-                                            const Matrix4 &transform)
+                                            const Matrix4 &transform,
+                                            const std::string &matType,
+                                            const MaterialParams &matParams)
 {
     Vec3 pos = readVec3Or(obj, "center", readVec3Or(obj, "point", Vec3(0, 0, 0)));
     Vec3 dir = readVec3Or(obj, "normal", Vec3(0, 1, 0));
     double radius = readOr<double>(obj, "radius", 1.0);
     std::string objPath = readStringOr(obj, "path", "");
-    PrimitiveParams primParams{pos, dir, radius, matPtr, transform, objPath};
+    bool useFileHeader = readOr<bool>(obj, "use_stl_header", false);
+    PrimitiveParams primParams{pos, dir, radius, matPtr, transform, objPath,
+        useFileHeader, matType, matParams};
 
     if (Factory::isPrimitiveRegistered(type))
         scene.primitives.push_back(Factory::createPrimitive(type, primParams));
@@ -195,15 +200,18 @@ void LibconfigLoader::loadObjects(const libconfig::Setting &objectsSetting, Scen
         bool isOBJ = (type == "obj");
         bool hasColor = obj.exists("color");
         Color color(1, 1, 1);
-        if (!isOBJ || hasColor)
+        if (hasColor)
             color = readColor(obj["color"]);
         TextureParams texParams;
         std::string textureType;
         bool hasTex = parseTextureSettings(obj, color, texParams, textureType);
         MaterialContext ctx{isOBJ, hasColor, color, textureType, hasTex, texParams};
-        auto matPtr = createObjectMaterial(obj, scene, ctx);
+        std::string matType;
+        MaterialParams matParams;
+        auto matPtr = createObjectMaterial(obj, scene, ctx, matType, matParams);
         Matrix4 transform = parseObjectTransform(obj);
-        createAndAddPrimitive(obj, type, scene, matPtr, transform);
+        createAndAddPrimitive(obj, type, scene, matPtr, transform,
+            matType, matParams);
     }
 }
 

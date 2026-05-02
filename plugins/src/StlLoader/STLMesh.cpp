@@ -51,10 +51,16 @@ AABB transformAABB(const AABB &box, const Matrix4 &m)
 
 STLMesh::STLMesh(const std::string &filepath,
     std::shared_ptr<const IMaterial> material,
-    const Matrix4 &transform)
+    const Matrix4 &transform,
+    bool useFileHeader,
+    const std::string &materialType,
+    const MaterialParams &materialParams)
     : _material(std::move(material)),
       _transform(transform),
-      _invTransform(transform.inverse())
+      _invTransform(transform.inverse()),
+      _useFileHeader(useFileHeader),
+      _materialType(materialType),
+      _materialParams(materialParams)
 {
     if (!loadSTL(filepath))
         return;
@@ -109,6 +115,51 @@ void STLMesh::decodeMateraliseHeader(const char *header,
     found = true;
 }
 
+void STLMesh::decodeMateraliseMaterial(const char *header,
+    bool &found, Color &diffuse, Color &specular)
+{
+    found = false;
+    std::string h(header, STL_HEADER_SIZE);
+    auto pos = h.find("MATERIAL=");
+    if (pos == std::string::npos || pos + 9 + 12 > STL_HEADER_SIZE)
+        return;
+    auto byteAt = [&](std::size_t i) -> int {
+        return static_cast<unsigned char>(h[pos + 9 + i]);
+    };
+    diffuse = Color(byteAt(0) / 255.0, byteAt(1) / 255.0, byteAt(2) / 255.0);
+    specular = Color(byteAt(4) / 255.0, byteAt(5) / 255.0, byteAt(6) / 255.0);
+    found = true;
+}
+
+void STLMesh::resolveHeaderMaterial()
+{
+    if (!_useFileHeader)
+        return;
+    bool overrode = false;
+    if (_stats.hasMaterialiseMaterial) {
+        _materialParams.color = _stats.materialiseDiffuse;
+        _materialParams.specular = _stats.materialiseSpecular;
+        _materialParams.hasSpecular = true;
+        overrode = true;
+    } else if (_stats.hasMaterialiseColor) {
+        _materialParams.color = _stats.materialiseColor;
+        overrode = true;
+    } else {
+        std::cerr << "[STL] use_stl_header requested but no Materialise "
+            "header found, falling back to cfg color\n";
+        return;
+    }
+    if (!overrode || _materialType.empty())
+        return;
+    auto rebuilt = std::shared_ptr<IMaterial>(
+        Factory::createMaterial(_materialType, _materialParams));
+    if (rebuilt)
+        _material = rebuilt;
+    else
+        std::cerr << "[STL] Failed to rebuild material '"
+            << _materialType << "' from header, keeping cfg material\n";
+}
+
 bool STLMesh::loadBinary(std::ifstream &file, std::uintmax_t fileSize,
     std::vector<RawTriangle> &raws)
 {
@@ -118,6 +169,8 @@ bool STLMesh::loadBinary(std::ifstream &file, std::uintmax_t fileSize,
         return false;
     decodeMateraliseHeader(header, _stats.hasMaterialiseColor,
         _stats.materialiseColor);
+    decodeMateraliseMaterial(header, _stats.hasMaterialiseMaterial,
+        _stats.materialiseDiffuse, _stats.materialiseSpecular);
 
     std::uint32_t numTriangles = 0;
     file.read(reinterpret_cast<char *>(&numTriangles), sizeof(numTriangles));
@@ -204,6 +257,7 @@ bool STLMesh::loadSTL(const std::string &filepath)
     if (!loadBinary(file, fileSize, raws) || raws.empty())
         return false;
 
+    resolveHeaderMaterial();
     buildTriangles(raws);
     return !_triangles.empty();
 }
@@ -272,7 +326,8 @@ extern "C"
                 if (p.objPath.empty())
                     return nullptr;
                 return std::make_unique<STLMesh>(p.objPath, p.material,
-                    p.transform);
+                    p.transform, p.useFileHeader, p.materialType,
+                    p.materialParams);
             }
         );
     }
