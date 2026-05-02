@@ -5,9 +5,9 @@
 ** Triangle geometry implementation
 */
 
+#include "ObjLoader/OBJMesh.hpp"
 #include <cmath>
 #include <algorithm>
-#include "OBJMesh.hpp"
 
 static void computeBoundsForTriangle(Triangle *tri)
 {
