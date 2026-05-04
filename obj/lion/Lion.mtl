@@ -1,0 +1,7 @@
+newmtl defaultMat
+Ka 1.0 1.0 1.0
+Kd 1.0 1.0 1.0
+Ks 0.5 0.5 0.5
+Ns 50.0
+map_Kd bw10k.jpg
+map_Bump nm.jpg

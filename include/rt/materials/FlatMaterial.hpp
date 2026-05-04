@@ -17,16 +17,16 @@ class FlatMaterial : public IMaterial {
 public:
     FlatMaterial(const Color &color);
     FlatMaterial(const Color &color, std::shared_ptr<ITexture> texture);
-    
+
     Color getColor() const override;
     Color getDiffuse() const override;
     bool isReflective() const override;
     double getReflectivity() const override;
     std::shared_ptr<const ITexture> getTexture() const override;
-    
+
     Color getSpecular() const override;
     double getShininess() const override;
-    
+
     void setSpecular(const Color &spec, double shin);
 
 private:
