@@ -83,3 +83,21 @@ add_plugin(stl_loader
     SRCS ${STL_LOADER_SRCS}
     INCS plugins/include
 )
+
+# Denoisers
+set(OIDN_ROOT ${CMAKE_SOURCE_DIR}/plugins/denoiser/oidn)
+
+add_plugin(simple_denoiser
+    SRCS plugins/src/denoisers/simple_denoiser.cpp
+         src/math/Vec3.cpp
+)
+
+add_plugin(oidn_denoiser
+    SRCS plugins/src/denoisers/oidn_denoiser.cpp
+         src/math/Vec3.cpp
+    INCS ${OIDN_ROOT}/include
+    LIBS ${OIDN_ROOT}/lib/libOpenImageDenoise.so
+)
+target_link_options(raytracer_oidn_denoiser PRIVATE
+    -Wl,-rpath,$ORIGIN/denoiser/oidn/lib
+)
