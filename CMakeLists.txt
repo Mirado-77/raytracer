@@ -101,3 +101,48 @@ add_plugin(oidn_denoiser
 target_link_options(raytracer_oidn_denoiser PRIVATE
     -Wl,-rpath,$ORIGIN/denoiser/oidn/lib
 )
+
+# IMGUI
+# imgui has no CMakeLists, FetchContent just downloads the sources.
+# imgui-sfml v2.6 has a CMakeLists that compiles imgui + the SFML backend
+# into a single static ImGui-SFML library (BUILD_SHARED_LIBS=OFF).
+# That static lib is then linked into our SHARED plugin .so, so no extra
+
+include(FetchContent)
+
+FetchContent_Declare(imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG v1.91.9b
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(imgui)
+
+set(IMGUI_DIR ${imgui_SOURCE_DIR} CACHE PATH "" FORCE)
+
+# Disable imgui-sfml's internal find_package(SFML) cause SFML is already found
+set(IMGUI_SFML_FIND_SFML OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(imgui_sfml
+    GIT_REPOSITORY https://github.com/SFML/imgui-sfml.git
+    GIT_TAG v2.6.1
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(imgui_sfml)
+
+# Wire SFML manually so imgui-SFML.cpp can find SFML headers and our
+# plugin gets SFML through ImGui-SFML::ImGui-SFML.
+target_link_libraries(ImGui-SFML PUBLIC sfml-graphics sfml-window sfml-system)
+# ImGui-SFML is a static lib that will be linked into a SHARED plugin, so need PIC
+set_target_properties(ImGui-SFML PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+add_library(raytracer_imgui_overlay SHARED
+    plugins/src/ui/ImGuiOverlay.cpp
+)
+set_target_properties(raytracer_imgui_overlay PROPERTIES PREFIX "")
+target_include_directories(raytracer_imgui_overlay PRIVATE include)
+target_link_libraries(raytracer_imgui_overlay PRIVATE
+    ImGui-SFML::ImGui-SFML
+    sfml-graphics
+    sfml-window
+    sfml-system
+)
