@@ -43,6 +43,10 @@ ProgressiveDisplay::ProgressiveDisplay(int width, int height)
 
 ProgressiveDisplay::~ProgressiveDisplay()
 {
+    if (uiOverlay_) {
+        uiOverlay_->shutdown();
+        uiOverlay_.reset();
+    }
     if (window_.isOpen())
         window_.close();
 }
@@ -121,8 +125,10 @@ void ProgressiveDisplay::setStatusText(const std::string &text)
 
 void ProgressiveDisplay::closeAndStop()
 {
-    if (uiOverlay_)
+    if (uiOverlay_) {
         uiOverlay_->shutdown();
+        uiOverlay_.reset();
+    }
     window_.close();
     stopRequested.store(true);
 }
@@ -204,6 +210,8 @@ void ProgressiveDisplay::eventLoop()
 {
     while (window_.isOpen()) {
         handleEvents();
+        if (!window_.isOpen())
+            break;
         draw();
         sf::sleep(sf::milliseconds(16));
     }
