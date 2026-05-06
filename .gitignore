@@ -1,3 +1,7 @@
 build/
 bin/
 *.so
+raytracer
+output.ppm
+denoise_tool
+*.o
