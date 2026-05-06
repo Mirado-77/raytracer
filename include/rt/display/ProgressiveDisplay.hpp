@@ -15,7 +15,9 @@
     #include <string>
     #include <functional>
     #include <unordered_map>
+    #include <memory>
     #include "rt/math/Color.hpp"
+    #include "rt/core/UIRegistry.hpp"
 
 static constexpr std::string_view FONT_FILE_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
 
@@ -29,11 +31,11 @@ public:
     void updatePixel(int x, int y, const Color &color);
     void updateRegion(int x, int y, int width, int height,
         const std::vector<Color> &colors);
-    
+
     bool isOpen() const;
     bool shouldStop() const { return stopRequested.load(); }
     void requestStop() { stopRequested.store(true); }
-    
+
     void setSaveCallback(std::function<void()> callback)
         { saveCallback_ = callback; }
     void setReloadCallback(std::function<void()> callback)
@@ -41,7 +43,7 @@ public:
     void setCameraControlCallback(std::function<void(
         const std::string&)> callback) { cameraControlCallback_ = callback; }
     void setStatusText(const std::string &text);
-    
+
     void run();
     void waitForClose();
 
@@ -71,19 +73,21 @@ private:
     sf::Texture texture_;
     sf::Sprite sprite_;
     std::vector<sf::Uint8> pixels_;
-    
+
     sf::Font font_;
     sf::Text statusText_;
     std::string statusString_;
     std::mutex statusMutex_;
-    
+
     std::mutex pixelMutex_;
     std::atomic<bool> stopRequested{false};
     std::atomic<bool> needsUpdate{false};
-    
+
     std::function<void()> saveCallback_;
     std::function<void()> reloadCallback_;
     std::function<void(const std::string&)> cameraControlCallback_;
+
+    std::shared_ptr<IUIOverlay> uiOverlay_;
 };
 
 }
