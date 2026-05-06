@@ -36,6 +36,9 @@ ProgressiveDisplay::ProgressiveDisplay(int width, int height)
     else
         configureStatusText();
     initKeyHandlers();
+    uiOverlay_ = UIRegistry::instance().getOverlay();
+    if (uiOverlay_)
+        uiOverlay_->init(window_);
 }
 
 ProgressiveDisplay::~ProgressiveDisplay()
@@ -118,6 +121,8 @@ void ProgressiveDisplay::setStatusText(const std::string &text)
 
 void ProgressiveDisplay::closeAndStop()
 {
+    if (uiOverlay_)
+        uiOverlay_->shutdown();
     window_.close();
     stopRequested.store(true);
 }
@@ -159,6 +164,8 @@ void ProgressiveDisplay::handleKeyPress(sf::Keyboard::Key key)
 
 void ProgressiveDisplay::handleEvent(const sf::Event &event)
 {
+    if (uiOverlay_ && uiOverlay_->processEvent(event))
+        return;
     if (event.type == sf::Event::Closed)
         closeAndStop();
     else if (event.type == sf::Event::KeyPressed)
@@ -180,12 +187,16 @@ void ProgressiveDisplay::draw()
         texture_.update(pixels_.data());
         needsUpdate.store(false);
     }
+    if (uiOverlay_)
+        uiOverlay_->update();
     window_.clear(sf::Color::Black);
     window_.draw(sprite_);
     if (font_.getInfo().family != "") {
         std::lock_guard<std::mutex> lock(statusMutex_);
         window_.draw(statusText_);
     }
+    if (uiOverlay_)
+        uiOverlay_->render(window_);
     window_.display();
 }
 
