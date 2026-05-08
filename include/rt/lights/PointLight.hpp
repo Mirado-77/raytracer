@@ -13,12 +13,16 @@
 class PointLight : public ILight {
 public:
     PointLight(const Vec3 &position, const Color &intensity);
-    
+
     Color getIntensity() const override;
     Vec3 getDirection(const Vec3 &point) const override;
     bool isDirectional() const override;
     Vec3 getPosition() const;
     double getDistance(const Vec3 &point) const;
+
+    Color getColor() const override { return intensity; }
+    double getBaseIntensity() const override { return 1.0; }
+    void setColor(const Color &c) override { intensity = c; }
 
 private:
     Vec3 position;
