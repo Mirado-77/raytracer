@@ -2,7 +2,7 @@
 ** EPITECH PROJECT, 2026
 ** clean_raytracer
 ** File description:
-** InteractiveMode - live rendering with camera control and hot-reload
+** InteractiveMode
 */
 
 #include "InteractiveMode.hpp"
@@ -12,6 +12,7 @@
 #include "rt/rendering/PPMWriter.hpp"
 #include "rt/display/ProgressiveDisplay.hpp"
 #include "rt/core/FileWatcher.hpp"
+#include "rt/core/SceneContext.hpp"
 #include "rt/math/Vec3.hpp"
 #include <iostream>
 #include <thread>
@@ -23,18 +24,21 @@
 using CamAction = std::function<void(Camera&, double, double)>;
 
 static const std::map<std::string, CamAction> s_camActions = {
-    {"forward",    [](Camera &c, double m, double) { c.moveForward(m); }},
-    {"backward",   [](Camera &c, double m, double) { c.moveBackward(m); }},
-    {"left",       [](Camera &c, double m, double) { c.moveLeft(m); }},
-    {"right",      [](Camera &c, double m, double) { c.moveRight(m); }},
-    {"up",         [](Camera &c, double m, double) { c.moveUp(m); }},
-    {"down",       [](Camera &c, double m, double) { c.moveDown(m); }},
-    {"pitch_up",   [](Camera &c, double, double r) { c.rotatePitch(r); }},
+    {"forward", [](Camera &c, double m, double) { c.moveForward(m); }},
+    {"backward", [](Camera &c, double m, double) { c.moveBackward(m); }},
+    {"left", [](Camera &c, double m, double) { c.moveLeft(m); }},
+    {"right", [](Camera &c, double m, double) { c.moveRight(m); }},
+    {"up", [](Camera &c, double m, double) { c.moveUp(m); }},
+    {"down", [](Camera &c, double m, double) { c.moveDown(m); }},
+    {"pitch_up", [](Camera &c, double, double r) { c.rotatePitch(r); }},
     {"pitch_down", [](Camera &c, double, double r) { c.rotatePitch(-r); }},
-    {"yaw_left",   [](Camera &c, double, double r) { c.rotateYaw(-r); }},
-    {"yaw_right",  [](Camera &c, double, double r) { c.rotateYaw(r); }},
+    {"yaw_left", [](Camera &c, double, double r) { c.rotateYaw(-r); }},
+    {"yaw_right", [](Camera &c, double, double r) { c.rotateYaw(r); }},
 };
 
+/**
+ * @brief Bundles all mutable state passed between interactive render helpers.
+ */
 struct InteractiveCtx
 {
     std::shared_ptr<rt::ProgressiveDisplay> display;
@@ -51,6 +55,14 @@ struct InteractiveCtx
     LibconfigLoader &loader;
 };
 
+/**
+ * @brief Applies a named camera action and updates the display status bar.
+ * @param scene: the scene whose camera is modified
+ * @param action: key name matching an entry in s_camActions
+ * @param moveSpeed: translation speed in scene units
+ * @param rotateSpeed: rotation speed in degrees
+ * @param display: display used to show the new camera position
+ */
 static void applyCameraControl(std::unique_ptr<Scene> &scene, const std::string &action,
     double moveSpeed, double rotateSpeed, rt::ProgressiveDisplay &display)
 {
@@ -62,6 +74,10 @@ static void applyCameraControl(std::unique_ptr<Scene> &scene, const std::string 
         + std::to_string(pos.y) + ", " + std::to_string(pos.z) + ")");
 }
 
+/**
+ * @brief Renders a single frame into ctx.pixels, running the denoiser if configured.
+ * @param ctx: the shared interactive context
+ */
 static void runRenderFrame(InteractiveCtx &ctx)
 {
     std::lock_guard<std::mutex> lock(ctx.pixelsMutex);
@@ -79,6 +95,10 @@ static void runRenderFrame(InteractiveCtx &ctx)
     }
 }
 
+/**
+ * @brief Blocks until a reload, camera change, or file-watcher event occurs.
+ * @param ctx: the shared interactive context
+ */
 static void waitForRenderTrigger(InteractiveCtx &ctx)
 {
     while (ctx.display->isOpen() && !ctx.shouldReload.load() && !ctx.cameraChanged.load())
@@ -92,6 +112,10 @@ static void waitForRenderTrigger(InteractiveCtx &ctx)
     }
 }
 
+/**
+ * @brief Handles a pending camera change or scene reload after each frame.
+ * @param ctx: the shared interactive context
+ */
 static void processRenderTrigger(InteractiveCtx &ctx)
 {
     if (ctx.cameraChanged.load())
@@ -108,8 +132,11 @@ static void processRenderTrigger(InteractiveCtx &ctx)
     ctx.renderComplete.store(false);
     try
     {
+        SceneContext::instance().setScene(nullptr);
         ctx.scene = ctx.loader.loadScene(ctx.cfg.sceneFile);
+        SceneContext::instance().setScene(ctx.scene.get());
         ctx.fileWatcher.reset();
+        SceneContext::instance().notifySceneChanged();
         ctx.display->setStatusText("Scene reloaded!");
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
@@ -121,10 +148,16 @@ static void processRenderTrigger(InteractiveCtx &ctx)
     }
 }
 
+/**
+ * @brief Runs the render, wait, and reload cycle until the display is closed.
+ * Clears all SceneContext callbacks on exit.
+ * @param ctx: the shared interactive context
+ */
 static void runRenderLoop(InteractiveCtx &ctx)
 {
     while (ctx.display->isOpen())
     {
+        SceneContext::instance().setScene(ctx.scene.get());
         ctx.display->setStatusText("Rendering...");
         runRenderFrame(ctx);
         if (!ctx.display->isOpen())
@@ -134,8 +167,16 @@ static void runRenderLoop(InteractiveCtx &ctx)
         waitForRenderTrigger(ctx);
         processRenderTrigger(ctx);
     }
+    SceneContext::instance().setScene(nullptr);
+    SceneContext::instance().setRerenderCallback(nullptr);
+    SceneContext::instance().setReloadCallback(nullptr);
+    SceneContext::instance().setSceneChangedCallback(nullptr);
 }
 
+/**
+ * @brief Wires save, reload, camera, and SceneContext callbacks for interactive mode.
+ * @param ctx: the shared interactive context
+ */
 static void setupInteractiveCallbacks(InteractiveCtx &ctx)
 {
     ctx.display->setSaveCallback([&ctx]()
@@ -154,6 +195,16 @@ static void setupInteractiveCallbacks(InteractiveCtx &ctx)
         std::lock_guard<std::mutex> lock(ctx.cameraMutex);
         applyCameraControl(ctx.scene, action, 0.3, 5.0, *ctx.display);
         ctx.cameraChanged.store(true);
+    });
+    SceneContext::instance().setRerenderCallback([&ctx]()
+    {
+        std::lock_guard<std::mutex> lock(ctx.cameraMutex);
+        ctx.cameraChanged.store(true);
+    });
+    SceneContext::instance().setScenePath(ctx.cfg.sceneFile);
+    SceneContext::instance().setReloadCallback([&ctx]()
+    {
+        ctx.shouldReload.store(true);
     });
 }
 
