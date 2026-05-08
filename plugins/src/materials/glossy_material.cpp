@@ -51,6 +51,10 @@ public:
         return nullptr;
     }
 
+    void setColor(const Color &c) override { color = c; }
+    void setRoughness(double r) override { roughness = r; }
+    void setReflectivity(double r) override { reflectivity = r; }
+
 private:
     Color color;
     double reflectivity;
