@@ -28,12 +28,15 @@ public:
     double getShininess() const override;
 
     void setSpecular(const Color &spec, double shin);
+    void setColor(const Color &c) override;
 
 private:
     Color color;
     std::shared_ptr<ITexture> texture;
     Color specular;
     double shininess;
+    /** @brief True when a custom texture was explicitly passed at construction. */
+    bool hasExplicitTexture_ = false;
 };
 
 #endif // RT_FLATMATERIAL_HPP
