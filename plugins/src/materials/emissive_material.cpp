@@ -55,6 +55,10 @@ public:
         return emissionColor * emissionStrength;
     }
 
+    void setColor(const Color &c) override { baseColor = c; }
+
+    void setEmission(const Color &e) override { emissionColor = e; }
+
     Color evaluateBRDF(const Vec3&, const Vec3&, const Vec3&, double, double) const override
     {
         return Color(0, 0, 0);
@@ -126,8 +130,8 @@ public:
         Vec3 u = ((std::abs(w.x) > 0.1 ? Vec3(0, 1, 0) : Vec3(1, 0, 0)).cross(w)).normalized();
         Vec3 v = w.cross(u);
 
-        Vec3 direction = (u * std::cos(phi) * sinTheta + 
-                         v * std::sin(phi) * sinTheta + 
+        Vec3 direction = (u * std::cos(phi) * sinTheta +
+                         v * std::sin(phi) * sinTheta +
                          w * cosTheta).normalized();
 
         ScatterResult result;
