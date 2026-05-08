@@ -8,15 +8,15 @@
 #include "rt/materials/FlatMaterial.hpp"
 #include "rt/textures/SolidColorTexture.hpp"
 
-FlatMaterial::FlatMaterial(const Color &color) 
-    : color(color), texture(std::make_unique<SolidColorTexture>(color)), 
-      specular(Color(1.0, 1.0, 1.0)), shininess(64.0)
+FlatMaterial::FlatMaterial(const Color &color)
+    : color(color), texture(std::make_shared<SolidColorTexture>(color)),
+      specular(Color(1.0, 1.0, 1.0)), shininess(64.0), hasExplicitTexture_(false)
 {
 }
 
 FlatMaterial::FlatMaterial(const Color &color, std::shared_ptr<ITexture> texture)
     : color(color), texture(std::move(texture)),
-      specular(Color(1.0, 1.0, 1.0)), shininess(64.0)
+      specular(Color(1.0, 1.0, 1.0)), shininess(64.0), hasExplicitTexture_(true)
 {
 }
 
@@ -59,4 +59,16 @@ void FlatMaterial::setSpecular(const Color &spec, double shin)
 {
     specular = spec;
     shininess = shin;
+}
+
+/**
+ * @brief Sets the diffuse color and refreshes the solid-color texture
+ * when no explicit texture was provided at construction.
+ * @param c: the new diffuse color
+ */
+void FlatMaterial::setColor(const Color &c)
+{
+    color = c;
+    if (!hasExplicitTexture_)
+        texture = std::make_shared<SolidColorTexture>(c);
 }
