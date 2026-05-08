@@ -145,4 +145,5 @@ target_link_libraries(raytracer_imgui_overlay PRIVATE
     sfml-graphics
     sfml-window
     sfml-system
+    ${LIBCONFIG_LIB}
 )
