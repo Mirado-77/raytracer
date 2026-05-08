@@ -81,6 +81,11 @@ public:
         return emission;
     }
 
+    void setColor(const Color &c) override { albedo = c; }
+    void setRoughness(double r) override { roughness = std::clamp(r, 0.03, 1.0); }
+    void setMetallic(double m) override { metallic = std::clamp(m, 0.0, 1.0); }
+    void setEmission(const Color &e) override { emission = e; }
+
     Color getAlbedo(double u, double v) const
     {
         if (albedoTexture) {
