@@ -5,3 +5,4 @@ raytracer
 output.ppm
 denoise_tool
 *.o
+imgui.ini
