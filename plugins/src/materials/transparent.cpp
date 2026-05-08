@@ -21,41 +21,45 @@ public:
         : color(color), refractiveIndex(refractiveIndex), reflectivity(reflectivity),
           texture(std::make_shared<SolidColorTexture>(color))
     {}
-    
+
     Color getColor() const override
     {
         return color;
     }
-    
+
     Color getDiffuse() const override
     {
         return color;
     }
-    
+
     bool isReflective() const override
     {
         return true;
     }
-    
+
     double getReflectivity() const override
     {
         return reflectivity;
     }
-    
+
     bool isTransparent() const override
     {
         return true;
     }
-    
+
     double getRefractiveIndex() const override
     {
         return refractiveIndex;
     }
-    
+
     std::shared_ptr<const ITexture> getTexture() const override
     {
         return texture;
     }
+
+    void setColor(const Color &c) override { color = c; }
+    void setRefractiveIndex(double r) override { refractiveIndex = r; }
+    void setReflectivity(double r) override { reflectivity = r; }
 
 private:
     Color color;
