@@ -9,12 +9,17 @@
 #include "rt/textures/SolidColorTexture.hpp"
 
 ReflectiveMaterial::ReflectiveMaterial(const Color &color, double reflectivity)
-    : color(color), reflectivity(reflectivity), texture(std::make_unique<SolidColorTexture>(color))
+    : color(color), reflectivity(reflectivity),
+    texture(std::make_shared<SolidColorTexture>(color)),
+    hasExplicitTexture_(false)
 {
 }
 
-ReflectiveMaterial::ReflectiveMaterial(const Color &color, double reflectivity, std::shared_ptr<ITexture> texture)
-    : color(color), reflectivity(reflectivity), texture(std::move(texture))
+ReflectiveMaterial::ReflectiveMaterial(const Color &color,
+    double reflectivity,
+    std::shared_ptr<ITexture> texture)
+    : color(color), reflectivity(reflectivity),
+    texture(std::move(texture)), hasExplicitTexture_(true)
 {
 }
 
@@ -41,4 +46,16 @@ double ReflectiveMaterial::getReflectivity() const
 std::shared_ptr<const ITexture> ReflectiveMaterial::getTexture() const
 {
     return texture;
+}
+
+/**
+ * @brief Sets the diffuse color and refreshes the solid-color texture
+ * when no explicit texture was provided at construction.
+ * @param c: the new diffuse color
+ */
+void ReflectiveMaterial::setColor(const Color &c)
+{
+    color = c;
+    if (!hasExplicitTexture_)
+        texture = std::make_shared<SolidColorTexture>(c);
 }
