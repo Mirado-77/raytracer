@@ -5,90 +5,134 @@
 ** ImGuiOverlay
 */
 
-#include <SFML/Graphics.hpp>
 #include <imgui.h>
 #include <imgui-SFML.h>
 #include <iostream>
 
-#include "rt/interfaces/IUIOverlay.hpp"
+#include "ImGuiOverlay.hpp"
+#include "ImGuiOverlayConfig.hpp"
 #include "rt/core/UIRegistry.hpp"
+#include "rt/core/SceneContext.hpp"
 
-class ImGuiOverlay : public IUIOverlay {
-public:
+/** @brief Returns true when event is a left-click outside any ImGui window. */
+static bool isPickClick(const sf::Event &event, const ImGuiIO &io)
+{
+    return event.type == sf::Event::MouseButtonPressed
+        && event.mouseButton.button == sf::Mouse::Left
+        && !io.WantCaptureMouse;
+}
 
-    // Disable ImGui cursor management at init
-    void init(sf::RenderWindow &window) override
-    {
-        window_ = &window;
-        if (!ImGui::SFML::Init(window))
-            std::cerr << "ImGuiOverlay: ImGui::SFML::Init failed" << std::endl;
-        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+/** @brief Routes a non-pick event and returns whether ImGui captured it. */
+static bool routeEvent(const sf::Event &event, const ImGuiIO &io)
+{
+    switch (event.type) {
+        case sf::Event::MouseButtonPressed:
+        case sf::Event::MouseButtonReleased:
+        case sf::Event::MouseMoved:
+        case sf::Event::MouseWheelScrolled:
+            return io.WantCaptureMouse;
+        case sf::Event::KeyPressed:
+        case sf::Event::KeyReleased:
+        case sf::Event::TextEntered:
+            return io.WantCaptureKeyboard;
+        default:
+            return false;
     }
+}
 
-    /**
-     * Feed the SFML event to imgui-sfml, then report whether ImGui wants to
-     * consume it so that ProgressiveDisplay skips camera / hotkey handling.
-     */
-    bool processEvent(const sf::Event &event) override
-    {
-        ImGui::SFML::ProcessEvent(*window_, event);
-        const ImGuiIO &io = ImGui::GetIO();
+void ImGuiOverlay::init(sf::RenderWindow &window)
+{
+    window_ = &window;
+    if (!ImGui::SFML::Init(window))
+        std::cerr << "ImGuiOverlay: ImGui::SFML::Init failed\n";
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+    SceneContext::instance().setSceneChangedCallback([this]() {
+        sceneChangedFlag_.store(true);
+    });
+    loadConfig();
+}
 
-        switch (event.type) {
-            case sf::Event::MouseButtonPressed:
-            case sf::Event::MouseButtonReleased:
-            case sf::Event::MouseMoved:
-            case sf::Event::MouseWheelScrolled:
-                return io.WantCaptureMouse;
-            case sf::Event::KeyPressed:
-            case sf::Event::KeyReleased:
-            case sf::Event::TextEntered:
-                return io.WantCaptureKeyboard;
-            default:
-                return false;
-        }
+bool ImGuiOverlay::processEvent(const sf::Event &event)
+{
+    ImGui::SFML::ProcessEvent(*window_, event);
+    const ImGuiIO &io = ImGui::GetIO();
+    if (isPickClick(event, io)) {
+        tryPick(event.mouseButton.x, event.mouseButton.y);
+        return false;
     }
+    return routeEvent(event, io);
+}
 
-    void update() override
-    {
-        ImGui::SFML::Update(*window_, deltaClock_.restart());
-        buildUI();
+void ImGuiOverlay::update()
+{
+    ImGui::SFML::Update(*window_, deltaClock_.restart());
+    if (!configLoaded_)
+        loadConfig();
+    if (sceneChangedFlag_.exchange(false))
+        handleSceneChange();
+    buildUI();
+}
+
+void ImGuiOverlay::render(sf::RenderWindow &window)
+{
+    ImGui::SFML::Render(window);
+}
+
+void ImGuiOverlay::shutdown()
+{
+    SceneContext::instance().setSceneChangedCallback(nullptr);
+    ImGui::SFML::Shutdown();
+    window_ = nullptr;
+}
+
+void ImGuiOverlay::loadConfig()
+{
+    configLoaded_ = false;
+    const std::string &path = SceneContext::instance().getScenePath();
+    if (path.empty())
+        return;
+    try {
+        cfg_.readFile(path.c_str());
+        configLoaded_ = true;
+        dirty_ = false;
+    } catch (const libconfig::FileIOException &e) {
+        std::cerr << "ImGuiOverlay: cannot open scene file: " << e.what() << "\n";
+    } catch (const libconfig::ParseException &e) {
+        std::cerr << "ImGuiOverlay: parse error line "
+                  << e.getLine() << ": " << e.getError() << "\n";
     }
+}
 
-    void render(sf::RenderWindow &window) override
-    {
-        ImGui::SFML::Render(window);
+void ImGuiOverlay::saveAndReload()
+{
+    if (!configLoaded_)
+        return;
+    const std::string &path = SceneContext::instance().getScenePath();
+    if (path.empty())
+        return;
+    try {
+        cfg_.writeFile(path.c_str());
+        dirty_ = false;
+    } catch (const libconfig::FileIOException &e) {
+        std::cerr << "ImGuiOverlay: cannot write scene file: " << e.what() << "\n";
+        return;
     }
+    SceneContext::instance().triggerReload();
+}
 
-    void shutdown() override
-    {
-        ImGui::SFML::Shutdown();
-        window_ = nullptr;
-    }
+void ImGuiOverlay::handleSceneChange()
+{
+    pick_ = PickResult{};
+    loadConfig();
+}
 
-private:
-
-    /** UI frames creation */
-    void buildUI()
-    {
-        ImGui::SetNextWindowPos(ImVec2(10.f, 40.f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(300.f, 160.f), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Scene Inspector");
-
-        ImGui::TextDisabled("Raytracer Interactive UI");
-        ImGui::Separator();
-        ImGui::Spacing();
-        ImGui::BulletText("Click on a primitive to select it.");
-        ImGui::BulletText("Selected object properties will appear");
-        ImGui::Spacing();
-        ImGui::TextDisabled("(object picking coming next)");
-
-        ImGui::End();
-    }
-
-    sf::RenderWindow *window_ = nullptr;
-    sf::Clock deltaClock_;
-};
+void ImGuiOverlay::buildUI()
+{
+    buildInspectorPanel();
+    buildLightsPanel();
+    buildCameraPanel();
+    buildModals();
+}
 
 extern "C" void rt_plugin_register()
 {
