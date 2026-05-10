@@ -136,10 +136,16 @@ target_link_libraries(ImGui-SFML PUBLIC sfml-graphics sfml-window sfml-system)
 set_target_properties(ImGui-SFML PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(raytracer_imgui_overlay SHARED
+    plugins/src/ui/ImGuiOverlayConfig.cpp
     plugins/src/ui/ImGuiOverlay.cpp
+    plugins/src/ui/ImGuiOverlayScene.cpp
+    plugins/src/ui/ImGuiOverlayInspector.cpp
+    plugins/src/ui/ImGuiOverlayLights.cpp
+    plugins/src/ui/ImGuiOverlayCamera.cpp
+    plugins/src/ui/ImGuiOverlayModals.cpp
 )
 set_target_properties(raytracer_imgui_overlay PROPERTIES PREFIX "")
-target_include_directories(raytracer_imgui_overlay PRIVATE include)
+target_include_directories(raytracer_imgui_overlay PRIVATE include plugins/src/ui)
 target_link_libraries(raytracer_imgui_overlay PRIVATE
     ImGui-SFML::ImGui-SFML
     sfml-graphics
